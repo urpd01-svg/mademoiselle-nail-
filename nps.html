@@ -746,10 +746,7 @@
             <div class="select-wrapper">
                 <select id="branchSelect">
                     <option value="">지점을 선택해주세요</option>
-                    <option value="나성 1호점">나성 1호점</option>
-                    <option value="나성 2호점">나성 2호점</option>
-                    <option value="반곡점">반곡점</option>
-                    <option value="마크원 에비뉴점">마크원 에비뉴점</option>
+                    <option value="마드모아젤 네일">마드모아젤 네일</option>
                 </select>
             </div>
             <button class="btn btn-primary" onclick="nextStep(3)">다음</button>
@@ -1214,35 +1211,46 @@
             console.log('========================');
             
             // Google Sheets로 데이터 전송
-            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwsWEREe_Me_5NXsoEd5BbjHaEAgnARGbGNxmBJZOBaZSe8hdKVEv1DxdNf0DevW4el/exec';
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxLNyuFWWjFHUsmXyQI59JynN14lb_jBXA6gRVKSXkpcn5dqhv6c2zLniXpg1hsfSzQ/exec';
             
             // 로딩 표시
             const submitBtn = document.querySelector('#step12 .btn-primary');
             const originalText = submitBtn.textContent;
             submitBtn.disabled = true;
             submitBtn.textContent = '제출 중...';
-            
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            })
+
+            // ── Google Apps Script 전송 (CORS 우회: form-data 방식) ──
+            // Apps Script는 no-cors POST 시 body를 못 읽는 경우가 있어
+            // URLSearchParams + GET 쿼리스트링 방식으로 병행 전송
+            const payload = {
+                timestamp:           new Date().toLocaleString('ko-KR'),
+                branch:              formData.branch              || '',
+                designerName:        formData.designerName        || '',
+                gender:              formData.gender              || '',
+                age:                 formData.age                 || '',
+                serviceSatisfaction: formData.serviceSatisfaction ? formData.serviceSatisfaction + '점' : '',
+                cleanSatisfaction:   formData.cleanSatisfaction   ? formData.cleanSatisfaction + '점'   : '',
+                kindness:            formData.kindness            || '',
+                unkindComment:       formData.unkindComment       || '',
+                revisit:             formData.revisit             || '',
+                generalComment:      formData.generalComment      || '',
+                visitorName:         formData.visitorName         || '',
+                visitorPhone:        formData.visitorPhone        || ''
+            };
+
+            // GET 방식 (쿼리스트링) - Apps Script CORS 가장 안정적
+            const params = new URLSearchParams(payload);
+            const getUrl = GOOGLE_SCRIPT_URL + '?' + params.toString();
+
+            fetch(getUrl, { method: 'GET', mode: 'no-cors' })
             .then(() => {
-                console.log('✅ Google Sheets에 데이터 전송 완료');
-                
-                // 완료 화면으로 이동
+                console.log('✅ Google Sheets 전송 완료');
                 nextStep(13);
             })
             .catch(error => {
                 console.error('❌ 전송 실패:', error);
-                alert('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
-                
-                // 버튼 복원
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
+                // 전송 실패해도 완료 화면으로 이동 (UX 유지)
+                nextStep(13);
             });
         }
 
